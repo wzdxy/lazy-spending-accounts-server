@@ -1,9 +1,15 @@
 const Koa = require("koa");
 const Router = require("koa-router");
 const mongoose = require("mongoose");
-const secret = 'my secret';
 const jwt = require('jsonwebtoken');
-const koaBody= require('koa-body');
+const koaBody = require('koa-body');
+
+const api=require('./routers/api');
+
+const app = new Koa();
+app.use(koaBody());
+
+const secret = 'my secret';
 
 // 连接数据库
 mongoose.connect("mongodb://localhost/ithome2");
@@ -20,10 +26,9 @@ db.once("open", function (params) {
     console.log("hello mongo");
 });
 
-const app = new Koa();
-const router = new Router();
-app.use(koaBody());
 
+
+// 错误处理
 app.use(async (ctx, next) => {
     try {
         await next();
@@ -37,7 +42,7 @@ app.use(async (ctx, next) => {
 
 // 配置跨域和返回类型
 app.use(function (ctx, next) {
-    ctx.type='json';
+    ctx.type = 'json';
     ctx.set("Access-Control-Allow-Origin", "*");
     next();
 });
@@ -48,34 +53,26 @@ const token = jwt.sign({
     exp: Math.floor(Date.now() / 1000) + (60 * 60)
 }, secret);
 
+// jwt 认证
 app.use(async function (ctx, next) {
-     jwt.verify('', secret,await function (err, decoded) {
-        if(err){
-            ctx.status=401;
-            ctx.throw(401, 'access_denied', {});
-        }
-    });
-    next()
-});
-
-router.post("/api/signup",async (ctx, next) => {
-    let req=ctx.request.body;
-    if(req.id && req.pw){
-        console.log(req);
+    if (['/api/signup','/api/login'].includes(ctx.originalUrl)) {
+        next()
+    } else {
+        jwt.verify('', secret, await function (err, decoded) {
+            if (err) {
+                ctx.status = 401;
+                ctx.throw(401, 'access_denied', {});
+            } else {
+                next();
+            }
+        });
     }
-    ctx.body=JSON.stringify({code:0,message:'ok ok ok'});
 });
 
-router.get("/hello", async (ctx, next) => {
-    ctx.body = "DATA : \n";
-    await analysis.find(function (err, data) {
-        if (err) return console.error(err);
-        console.log(data);
-        ctx.body += JSON.stringify(data, null, 4);
-        next();
-    });
-    ctx.body += "<br/> END";
-});
+
+// 挂载路由
+router=new Router();
+router.use('/api',api.router.routes()).use(api.router.allowedMethods());
 
 app.use(router.routes()).use(router.allowedMethods());
 
