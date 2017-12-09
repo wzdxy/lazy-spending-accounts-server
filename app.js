@@ -12,15 +12,8 @@ app.use(koaBody());
 const secret = 'my secret';
 
 // 连接数据库
-mongoose.connect("mongodb://localhost/ithome2");
+mongoose.connect("mongodb://localhost/t1");
 const db = mongoose.connection;
-const analysis = mongoose.model(
-    "analysis",
-    mongoose.Schema({
-        name: String
-    }),
-    "analysis"
-);
 db.on("error", console.error.bind(console, "connection error:"));
 db.once("open", function (params) {
     console.log("hello mongo");
@@ -41,10 +34,10 @@ app.use(async (ctx, next) => {
 });
 
 // 配置跨域和返回类型
-app.use(function (ctx, next) {
+app.use(async function (ctx, next) {
     ctx.type = 'json';
     ctx.set("Access-Control-Allow-Origin", "*");
-    next();
+    await next();
 });
 
 
@@ -56,7 +49,7 @@ const token = jwt.sign({
 // jwt 认证
 app.use(async function (ctx, next) {
     if (['/api/signup','/api/login'].includes(ctx.originalUrl)) {
-        next()
+        await next()
     } else {
         jwt.verify('', secret, await function (err, decoded) {
             if (err) {
@@ -72,7 +65,7 @@ app.use(async function (ctx, next) {
 
 // 挂载路由
 router=new Router();
-router.use('/api',api.router.routes()).use(api.router.allowedMethods());
+router.use('/api',api.routes()).use(api.allowedMethods());
 
 app.use(router.routes()).use(router.allowedMethods());
 
