@@ -4,15 +4,18 @@ const mongoose = require("mongoose");
 const jwt = require('jsonwebtoken');
 const koaBody = require('koa-body');
 
+const config=require('./config');
 const api=require('./routers/api');
+const page=require('./routers/page');
 
 const app = new Koa();
 app.use(koaBody());
 
 const secret = 'my secret';
+const User = require('./models/user');
 
 // 连接数据库
-mongoose.connect("mongodb://localhost/t1");
+mongoose.connect("mongodb://localhost/"+config.db_name);
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
 db.once("open", function (params) {
@@ -27,9 +30,7 @@ app.use(async (ctx, next) => {
         await next();
     } catch (err) {
         ctx.response.status = err.statusCode || err.status || 500;
-        ctx.response.body = {
-            message: err.message
-        };
+        ctx.response.body = err.message || 'server error'
     }
 });
 
@@ -41,24 +42,23 @@ app.use(async function (ctx, next) {
 });
 
 
-const token = jwt.sign({
-    data: {name: 'z'},
-    exp: Math.floor(Date.now() / 1000) + (60 * 60)
-}, secret);
+
 
 // jwt 认证
 app.use(async function (ctx, next) {
-    if (['/api/signup','/api/login'].includes(ctx.originalUrl)) {
+    if (['/api/signup','/api/login','/page'].includes(ctx.originalUrl)) {
         await next()
     } else {
-        jwt.verify('', secret, await function (err, decoded) {
-            if (err) {
-                ctx.status = 401;
-                ctx.throw(401, 'access_denied', {});
-            } else {
-                next();
-            }
-        });
+        // await User.verifyToken(ctx,ctx.req.body.token);
+
+        // jwt.verify('', secret, await function (err, decoded) {
+        //     if (err) {
+        //         ctx.status = 401;
+        //         ctx.throw(401, 'access_denied', {});
+        //     } else {
+        //         next();
+        //     }
+        // });
     }
 });
 
@@ -66,6 +66,7 @@ app.use(async function (ctx, next) {
 // 挂载路由
 router=new Router();
 router.use('/api',api.routes()).use(api.allowedMethods());
+router.use('/page',page.routes()).use(page.allowedMethods());
 
 app.use(router.routes()).use(router.allowedMethods());
 
