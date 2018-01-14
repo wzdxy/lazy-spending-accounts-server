@@ -49,16 +49,14 @@ app.use(async function (ctx, next) {
     if (['/api/signup','/api/login','/page'].includes(ctx.originalUrl)) {
         await next()
     } else {
-        // await User.verifyToken(ctx,ctx.req.body.token);
-
-        // jwt.verify('', secret, await function (err, decoded) {
-        //     if (err) {
-        //         ctx.status = 401;
-        //         ctx.throw(401, 'access_denied', {});
-        //     } else {
-        //         next();
-        //     }
-        // });
+        let result = await User.verifyToken(ctx,ctx.request.body.token);
+        if(result.code===0) {
+            ctx.state.currentUser = result.user;
+            await next();
+        }else{
+            ctx.status=401;
+            ctx.throw(401,'access_denied:'+result.message,{})
+        }
     }
 });
 

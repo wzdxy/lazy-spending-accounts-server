@@ -24,7 +24,7 @@ api.post("/signup", async (ctx,next) => {
                 ctx.body=JSON.stringify({code:-2,message:'failed'});
             }else{
                 let token=await user.signToken();
-                ctx.body = JSON.stringify({code: 0, message: 'sign up success',token:token});
+                ctx.body = JSON.stringify({code: 0, message: 'sign up success',token:token,email:req.email});
             }
         }
     }
@@ -42,7 +42,33 @@ api.post("/login", async (ctx, next) => {
             ctx.body = JSON.stringify({code: 400, message: 'email not exist or wrong password'});
         }
     }
+});
 
+api.post("/sync", async (ctx, next) =>{
+    let req = ctx.request.body;
+    console.log(req);
+    let user = ctx.state.currentUser;
+    let idListHasSync = [];
+    if(req.hasOwnProperty('list') && req.list.length){
+        let listForSync = JSON.parse(req.list);
+        let modifyList = listForSync.filter((i)=>i.status===2 || i.status===1); // 修改和删除
+        let addList = listForSync.filter((i)=>i.status===0);        // 新增
+        modifyList.forEach((item)=>{
+            for(let i=user.account.length-1;i>=0;i--){
+                let existItem=user.account[i];
+                if(item.id===existItem.id){
+                    Object.assign(existItem,item);
+                    idListHasSync.push(item.id);
+                    break;
+                }
+            }
+        });
+        addList.map((item)=>{
+            user.account.push(item);
+            idListHasSync.push(item.id);
+        });
+    }
+    ctx.body = JSON.stringify({code: 0, message: 'get sync request',syncList:idListHasSync});
 });
 
 api.get("/hello", async (ctx, next) => {
