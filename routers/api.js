@@ -49,26 +49,36 @@ api.post("/sync", async (ctx, next) =>{
     console.log(req);
     let user = ctx.state.currentUser;
     let idListHasSync = [];
-    if(req.hasOwnProperty('list') && req.list.length){
-        let listForSync = JSON.parse(req.list);
+    // 读取上传的数据
+    if(req.hasOwnProperty('uploadList') && req.uploadList.length){
+        let listForSync = JSON.parse(req.uploadList);
         let modifyList = listForSync.filter((i)=>i.status===2 || i.status===1); // 修改和删除
         let addList = listForSync.filter((i)=>i.status===0);        // 新增
         modifyList.forEach((item)=>{
             for(let i=user.account.length-1;i>=0;i--){
-                let existItem=user.account[i];
-                if(item.id===existItem.id){
-                    Object.assign(existItem,item);
+                if(item.id===user.account[i]){
+                    Object.assign(user.account[i],item);
                     idListHasSync.push(item.id);
+                    console.log('Sync',item);
                     break;
                 }
             }
         });
-        addList.map((item)=>{
+        addList.forEach((item)=>{
             user.account.push(item);
             idListHasSync.push(item.id);
+            console.log('Sync',item);
         });
+        user.save();
     }
-    ctx.body = JSON.stringify({code: 0, message: 'get sync request',syncList:idListHasSync});
+    // 返回需要拉取到客户端的数据
+    let lastedSyncTime=req.hasOwnProperty("lastSyncTime")?req.lastSyncTime:false;
+    let downloadList=user.account.filter((item)=>{
+        if(lastedSyncTime)return item.updated_at-lastedSyncTime;
+        else return true;
+    });
+
+    ctx.body = JSON.stringify({code: 0, message: 'get sync request',syncList:idListHasSync,downloadList:downloadList});
 });
 
 api.get("/hello", async (ctx, next) => {
